@@ -1,0 +1,29 @@
+copy big icon
+paste as new image
+autocrop
+copy
+paste onto template
+ctrl+h
+copy card rank
+paste as new image
+autocrop
+copy
+paste onto template
+to new layer
+align with top left corner of card, down 2px, right 2px
+copy small icon
+paste as new image
+autocrop
+copy
+paste onto template
+move down, one px between bottom of rank and top of suit
+to new layer
+merge down
+layer to image size
+ctrl+A
+copy
+paste
+shift+R
+type 180
+press tab 7 times, press enter
+export to new card file
