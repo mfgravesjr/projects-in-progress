@@ -1,0 +1,3 @@
+find a cell with two numbers in it.
+for each of those numbers, assume one is on
+search all cells visible to that one for another cell that contains that number in a set of 2. If the first cell was on, the next cell would be off, leaving the remaining number as the tentative solution. Look through all visible cells to that one for another cell that contains THAT number in a set of 2 (store in a stack like the x-cycles and increment if a cycle fails). Keep doing this cycle until the first cell is visible to the last cell. There is an xy-chain iff the first cell contains the resulting number of the last cell of the xy-chain. If that's true, then eliminate that last number from every cell visible between the first and last cell of the xy chain.
