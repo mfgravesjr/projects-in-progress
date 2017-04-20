@@ -10,7 +10,7 @@ class SudokuSolver implements Cloneable
    private static Candidates.Change[] changes = null;
    private Candidates cand = null;   
    private Integer[] referenceCells = null;
-   private int[] strategies = new int[20];
+   private int[] strategies = new int[21];
    
    public SudokuSolver(Candidates cand)
    {
@@ -1041,10 +1041,10 @@ class SudokuSolver implements Cloneable
    
    public boolean xyChains()
    {
-      System.out.println("Calling xyChains");
       Candidates cand2 = (Candidates)cand.clone();
+      Integer[] referenceCells = null;
       
-      for(int p = 0; p < 2; p++)
+      P: for(int p = 0; p < 2; p++)
       {
          Stack<ArrayList<Integer>> xyChainsCandidates = new Stack<ArrayList<Integer>>();
          Stack<Integer> xyChainsAccess = new Stack<Integer>();
@@ -1069,7 +1069,6 @@ class SudokuSolver implements Cloneable
             
          LOOP: while(true)
          {
-            System.out.println(xyChainsCandidates.size());
             if(xyChainsCandidates.empty()) 
                break LOOP;
             
@@ -1087,17 +1086,23 @@ class SudokuSolver implements Cloneable
             
             //if we're looking at the first iteration of candidates for xyChains,
             //then the test value is that cells value at index p
-            if(xyChainsCandidates.size() == 1)
-               test = cand.get(references.peek())[p];
+            for(int x = 0; x < references.size(); x++)
+            {
+               int ref = references.get(x);
+               if(x == 0)
+                  test = cand.get(ref)[p];
+               else
+                  test = (cand.get(ref)[0] == test? cand.get(ref)[1]: cand.get(ref)[0]);
+            }
             
             //start looking for new node in xyChain
             int top = references.pop();
             int second = -1;
-            if(!references.empty()) references.peek();
+            if(!references.empty()) second = references.peek();
             references.push(top);
-            xyChainsCells.clear();
+            xyChainsCells = new ArrayList<Integer>();
             for(int v: SudokuUtil.visibleCells(references.peek(),references.peek()))
-               if(cand.get(v).length == 2 && Arrays.binarySearch(cand.get(v),test) >= 0 && v != top && v != second)
+               if(cand.get(v).length == 2 && Arrays.binarySearch(cand.get(v),test) >= 0 && !references.contains(v))
                   xyChainsCells.add(v);
             
             //xyChain found / candidates added
@@ -1116,26 +1121,256 @@ class SudokuSolver implements Cloneable
             
             //only reachable if xyChain was found. set the test value to the new reference's value that's
             //not the previous test value
-            test = (cand.get(references.peek())[0] == test? cand.get(references.peek())[1]: cand.get(references.peek())[0]);
-            
-            System.out.print("references: ");
-            for(int r: references) System.out.print(r + ", ");
-            System.out.println();
-            
+            for(int x = 0; x < references.size(); x++)
+            {
+               int ref = references.get(x);
+               if(x == 0)
+                  test = cand.get(ref)[p];
+               else
+                  test = (cand.get(ref)[0] == test? cand.get(ref)[1]: cand.get(ref)[0]);
+            }
+                  
             //test if xyChains is complete
-            if(SudokuUtil.isVisible(references.firstElement(),references.peek()) && test == cand.get(references.firstElement())[p ^ 1])
+            if(test == cand.get(references.firstElement())[p ^ 1])
                for(int index: SudokuUtil.visibleCells(references.firstElement(),references.peek()))
                   if(!references.contains(index))
                      cand2.remove(index,test);
             
+            referenceCells = new Integer[references.size()];
+            for(int r = 0; r < references.size(); r++)
+               referenceCells[r] = references.get(r);
             if(!cand2.equals(cand))
-               break LOOP;
-            else
-               xyChainsAccess.push(xyChainsAccess.pop()+1);
+               break P;
          }
       }
       boolean different = (!cand.equals(cand2)); //test to see if a change has occurred
-      if(different) setChange(cand2);
+      if(different) setChange(cand2,referenceCells);
+      return different; //returns true if change occurred.
+   }
+   
+   public boolean medusa()
+   {
+      Candidates cand2 = (Candidates)cand.clone();
+      Integer[] referenceCells = null;
+      ArrayList<Candidates.Change> checked = new ArrayList<Candidates.Change>();
+      
+      EVERYTHING: for(int i = 0; i < 81; i++)
+      {
+         LOOP: for(int num: cand.get(i))
+         {
+            if(checked.contains(new Candidates.Change(i,num)))
+               continue LOOP;
+            ArrayList<Candidates.Change> oddColours = new ArrayList<Candidates.Change>();
+            ArrayList<Candidates.Change> evenColours = new ArrayList<Candidates.Change>();
+            ArrayList<Candidates.Change> activeColours = oddColours;
+            ArrayList<Candidates.Change> queue = new ArrayList<Candidates.Change>();
+            HashSet<Candidates.Change> temporary = new HashSet<Candidates.Change>();
+            
+            queue.add(new Candidates.Change(i,num));
+            
+            while(queue.size() != 0)
+            {
+               for(Candidates.Change candidate: queue)
+               {
+                  Integer[] possibleNums = cand.get(candidate.getIndex());
+                  if(possibleNums.length == 2)
+                  {
+                     int number = (possibleNums[0] == candidate.getValue()? possibleNums[1]: possibleNums[0]);
+                     Candidates.Change possible = new Candidates.Change(candidate.getIndex(),number);
+                     if(!oddColours.contains(possible) && !evenColours.contains(possible)) temporary.add(possible);
+                  }
+                  
+                  BLOCK: for(int rcb = 0; rcb < 3; rcb++)
+                  {
+                     Candidates.Change possible = null;
+                     for(int s = 0; s < 9; s++)
+                     {
+                        int origin;
+                        int step = -1;
+                        switch(rcb)
+                        {
+                           case 0:  origin = SudokuUtil.gridRowOrigin(candidate.getIndex());
+                                    step = SudokuUtil.rowStep(s, origin);
+                                    break;
+                           case 1:  origin = SudokuUtil.gridColOrigin(candidate.getIndex());
+                                    step = SudokuUtil.colStep(s, origin);
+                                    break;
+                           case 2:  origin = SudokuUtil.gridBoxOrigin(candidate.getIndex());
+                                    step = SudokuUtil.boxStep(s, origin);
+                                    break;
+                        }
+                        
+                        Candidates.Change poss = new Candidates.Change(step, candidate.getValue());
+                        if(Arrays.binarySearch(cand.get(step),candidate.getValue()) >= 0 && !poss.equals(candidate))
+                           if(possible == null)
+                              possible = poss;
+                           else continue BLOCK;
+                     }                     
+                     if(possible != null
+                        && !oddColours.contains(possible)
+                        && !evenColours.contains(possible))
+                           temporary.add(possible);
+                  }
+               }
+               
+               for(Candidates.Change c: queue)
+               {
+                  activeColours.add(c);
+                  checked.add(c);
+               }
+               queue.clear();
+               for(Candidates.Change c: temporary) 
+                  queue.add(c);
+               temporary.clear();
+               
+               activeColours = (activeColours == oddColours? evenColours: oddColours);
+            }
+            
+            //test if medusa is complete
+            ArrayList<Candidates.Change> total = new ArrayList<Candidates.Change>(oddColours);
+            total.addAll(evenColours);
+            
+            HashSet<Integer> references = new HashSet<Integer>();
+            for(Candidates.Change c: total) references.add(c.getIndex());
+            referenceCells = new Integer[references.size()];
+            for(int ref = 0; ref < references.size(); ref++)
+               referenceCells[ref] = new ArrayList<Integer>(references).get(ref);
+               
+            //MASS ELIMINATION RULES GO FIRST (SAME COLOUR STRATEGIES)
+            for(int x = 0; x < total.size(); x++)
+               for(int x2 = x+1; x2 < total.size(); x2++)
+               {
+                  Candidates.Change node = total.get(x);
+                  Candidates.Change node2 = total.get(x2);
+                  
+                  boolean sameColour = (oddColours.contains(node) && oddColours.contains(node2))
+                     || (evenColours.contains(node) && evenColours.contains(node2));
+                  boolean sameCell = node.getIndex() == node2.getIndex();
+                  boolean sameUnit = SudokuUtil.isVisible(node.getIndex(),node2.getIndex());
+                  boolean sameCand = node.getValue() == node2.getValue();
+                  
+                   //SAME-COLOR RULES
+                                    
+                  //rules 1, 2
+                  if((sameColour && sameCell) || (sameColour && sameCand && sameUnit))
+                  {
+                     ArrayList<Candidates.Change> deletionColours = (oddColours.contains(node)? oddColours: evenColours);
+                     ArrayList<Candidates.Change> fixationColours = (oddColours.contains(node)? evenColours: oddColours);
+                     for(Candidates.Change deletion: deletionColours)
+                        cand2.remove(deletion.getIndex(), deletion.getValue());
+                     for(Candidates.Change fixation: fixationColours)
+                        cand2.set(fixation.getIndex(), new Integer[]{fixation.getValue()});
+                     if(!cand2.equals(cand))
+                        break EVERYTHING;
+                  }
+               }
+            
+            //rule 6
+            for(int a = 0; a < 81; a++)
+            {
+               ArrayList<Integer> nodeCellsOdd = new ArrayList<Integer>();
+               ArrayList<Integer> nodeCellsEven = new ArrayList<Integer>();
+               HashSet<Integer> oddConflicts = new HashSet<Integer>();
+               HashSet<Integer> evenConflicts = new HashSet<Integer>();
+               
+               for(Candidates.Change c: oddColours)
+                  nodeCellsOdd.add(c.getIndex());
+               for(Candidates.Change c: evenColours)
+                  nodeCellsEven.add(c.getIndex());
+                  
+               if(!nodeCellsOdd.contains(a) && !nodeCellsEven.contains(a))
+               {
+                  for(Candidates.Change o: oddColours)
+                     if(Arrays.binarySearch(SudokuUtil.visibleCells(a,a), o.getIndex()) >= 0)
+                        oddConflicts.add(o.getValue());
+                  for(Candidates.Change e: evenColours)
+                     if(Arrays.binarySearch(SudokuUtil.visibleCells(a,a), e.getIndex()) >= 0)
+                        evenConflicts.add(e.getValue());
+               }
+               
+               boolean deleteOdd = true;
+               boolean deleteEven = true;
+               for(int number: cand.get(a))
+               {
+                  deleteOdd &= oddConflicts.contains(number);
+                  deleteEven &= evenConflicts.contains(number);
+               }
+               
+               if(deleteOdd)
+               {
+                  for(Candidates.Change deletion: oddColours)
+                     cand2.remove(deletion.getIndex(), deletion.getValue());
+                  for(Candidates.Change fixation: evenColours)
+                     cand2.set(fixation.getIndex(), new Integer[]{fixation.getValue()});
+               }
+               else if(deleteEven)
+               {
+                  for(Candidates.Change deletion: evenColours)
+                     cand2.remove(deletion.getIndex(), deletion.getValue());
+                  for(Candidates.Change fixation: oddColours)
+                     cand2.set(fixation.getIndex(), new Integer[]{fixation.getValue()});
+               }
+               if(!cand2.equals(cand))
+               {
+                  Integer[] newReferences = new Integer[referenceCells.length+1];
+                  System.arraycopy(referenceCells,0,newReferences,0,referenceCells.length);
+                  newReferences[referenceCells.length] = a;
+                  referenceCells = newReferences;
+                  break EVERYTHING;
+               }
+            }
+            
+            for(int x = 0; x < total.size(); x++)
+               for(int x2 = x+1; x2 < total.size(); x2++)
+               {
+                  Candidates.Change node = total.get(x);
+                  Candidates.Change node2 = total.get(x2);
+                  
+                  boolean sameColour = (oddColours.contains(node) && oddColours.contains(node2))
+                     || (evenColours.contains(node) && evenColours.contains(node2));
+                  boolean sameCell = node.getIndex() == node2.getIndex();
+                  boolean sameUnit = SudokuUtil.isVisible(node.getIndex(),node2.getIndex());
+                  boolean sameCand = node.getValue() == node2.getValue();
+                                    
+                  //DIFFERENT-COLOR RULES
+                  
+                  //rule 3
+                  if(!sameColour && sameCell)
+                  {
+                     cand2.set(node.getIndex(), new Integer[]{node.getValue(),node2.getValue()});
+                  }
+                  if(!cand2.equals(cand))
+                     break EVERYTHING;
+                     
+                  //rule 4
+                  if(!sameColour && sameCand)
+                  {
+                     for(int cell: SudokuUtil.visibleCells(node.getIndex(), node2.getIndex()))
+                        if(!total.contains(new Candidates.Change(cell,node.getValue())))     //----> candidate in this cell is not part of a node
+                           cand2.remove(cell, node.getValue());
+                  }
+                  if(!cand2.equals(cand))
+                     break EVERYTHING;
+                              
+                  //rule 5
+                  if(!sameColour && !sameCand && sameUnit && !sameCell)
+                  {
+                     if(Arrays.binarySearch(cand.get(node.getIndex()), node2.getValue()) >= 0
+                        && !total.contains(new Candidates.Change(node.getIndex(),node2.getValue())))
+                           cand2.remove(node.getIndex(), node2.getValue());
+                     if(Arrays.binarySearch(cand.get(node2.getIndex()), node.getValue()) >= 0
+                        && !total.contains(new Candidates.Change(node2.getIndex(), node.getValue())))
+                           cand2.remove(node2.getIndex(), node.getValue());
+                  }
+               
+                  if(!cand2.equals(cand))
+                     break EVERYTHING;
+               }
+            
+         }
+      }
+      boolean different = (!cand.equals(cand2)); //test to see if a change has occurred
+      if(different) setChange(cand2,referenceCells);
       return different; //returns true if change occurred.
    }
    
@@ -1161,113 +1396,117 @@ class SudokuSolver implements Cloneable
                                                       if(!xCycles())
                                                          if(!bug())
                                                             if(!xyChains())
-                                                               if(!jellyfish())
-                                                                  if(!wxyzWing())
-                                                                     return isComplete();
+                                                               if(!medusa())
+                                                                  if(!jellyfish())
+                                                                     if(!wxyzWing())
+                                                                        return isComplete();
+                                                                     else
+                                                                     {
+//                                                                         System.out.println("wxyzWing");
+                                                                        strategies[20]++;
+                                                                     }
                                                                   else
                                                                   {
-                                                                     System.out.println("wxyzWing");
+//                                                                      System.out.println("jellyfish");
                                                                      strategies[19]++;
                                                                   }
                                                                else
                                                                {
-                                                                  System.out.println("jellyfish");
+//                                                                   System.out.println("medusa");
                                                                   strategies[18]++;
                                                                }
                                                             else
                                                             {
-                                                               System.out.println("xyChains");
+//                                                                System.out.println("xyChains");
                                                                strategies[17]++;
-                                                               printDetails();
-                                                               new java.util.Scanner(System.in).nextLine();
                                                             }
                                                          else
                                                          {
-                                                            System.out.println("BUG");
+//                                                             System.out.println("BUG");
                                                             strategies[16]++;
                                                          }
                                                       else
                                                       {
-                                                         System.out.println("xCycles");
+//                                                          System.out.println("xCycles");
                                                          strategies[15]++;
                                                       }
                                                    else
                                                    {
-                                                      System.out.println("xyzWing");
+//                                                       System.out.println("xyzWing");
                                                       strategies[14]++;
                                                    }
                                                 else
                                                 {
-                                                   System.out.println("swordfish");
+//                                                    System.out.println("swordfish");
                                                    strategies[13]++;
                                                 }
                                              else
                                              {
-                                                System.out.println("yWing");
+//                                                 System.out.println("yWing");
                                                 strategies[12]++;
                                              }
                                           else
                                           {
-                                             System.out.println("singlesChains");
+//                                              System.out.println("singlesChains");
                                              strategies[11]++;
                                           }
                                        else
                                        {
-                                          System.out.println("xWing");
+//                                           System.out.println("xWing");
                                           strategies[10]++;
                                        }
                                     else
                                     {
-                                       System.out.println("boxLineReduction");
+//                                        System.out.println("boxLineReduction");
                                        strategies[9]++;
                                     }
                                  else
                                  {
-                                    System.out.println("pointingPairs");
+//                                     System.out.println("pointingPairs");
                                     strategies[8]++;
                                  }
                               else
                               {
-                                 System.out.println("hiddenQuads");
+//                                  System.out.println("hiddenQuads");
                                  strategies[7]++;
                               }
                            else
                            {
-                              System.out.println("nakedQuads");
+//                               System.out.println("nakedQuads");
                               strategies[6]++;
                            }
                         else
                         {
-                           System.out.println("hiddenTriples");
+//                            System.out.println("hiddenTriples");
                            strategies[5]++;
                         }
                      else
                      {
-                        System.out.println("hiddenPairs");
+//                         System.out.println("hiddenPairs");
                         strategies[4]++;
                      }
                   else
                   {
-                     System.out.println("nakedTriples");
+//                      System.out.println("nakedTriples");
                      strategies[3]++;
                   }
                else
                {
-                  System.out.println("nakedPairs");
+//                   System.out.println("nakedPairs");
                   strategies[2]++;
                }
             else
             {
-               System.out.println("hiddenSingles");
+//                System.out.println("hiddenSingles");
                strategies[1]++;
             }
          else
          {
-            System.out.println("updateCandidates");
+//             System.out.println("updateCandidates");
             strategies[0]++;
          }
          
-         printDetails();
+//          printDetails();
       }
    }
    
@@ -1301,8 +1540,9 @@ class SudokuSolver implements Cloneable
       System.out.println("xCycles:          "+strategies[15]);
       System.out.println("BUG:              "+strategies[16]);
       System.out.println("xyChains:         "+strategies[17]);
-      System.out.println("jellyfish:        "+strategies[18]);
-      System.out.println("wxyzWing:         "+strategies[19]);
+      System.out.println("medusa:           "+strategies[18]);
+      System.out.println("jellyfish:        "+strategies[19]);
+      System.out.println("wxyzWing:         "+strategies[20]);
    }
    
    public boolean isComplete()
