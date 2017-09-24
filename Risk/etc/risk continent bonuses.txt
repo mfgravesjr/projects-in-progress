@@ -1,0 +1,27 @@
+territories borders total   %	   /4
+am   9	       3      12    16.2   5
+s.a  4         3      7	    9.4    3
+af   6         5      11    14.8   4
+au   4         1      5     6.7    2
+eu   7         6      13    17.5   5
+as   12        7      19    25.6   7
+an   4         3      7     9.4    3
+                      74
+
+blue   7       4      11    9.4    3 actual 4   3
+black  4       5      9     7.7    2 actual 2   2
+yellow 5       8      13    11.2   3 actual 3   3
+green  7       14     21    18.1   5 actual 5   6
+red    8       5      13    11.2   3 actual 5   3
+purple 7       11     18    15.5   4 actual 5   5
+cyan   4       6      10    8.6    3 actual 2   2
+citrus 6       8      14    12     4 actual 4   4
+brown  4       3      7     6      2 actual 2   2
+                      116
+
+col-white
+col-black
+col-red
+col-purp
+col-cyan
+col-yell

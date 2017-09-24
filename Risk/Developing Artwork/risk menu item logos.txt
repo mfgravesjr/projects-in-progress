@@ -1,0 +1,14 @@
+typeface: Fabulous
+font: Aircruiser
+text size: 40
+regular
+shadow: #9d2c2c size: 2 feather: 5
+outline: 0, text > advanced > filters > make outline (on): fill black
+glow
+shadow: #c27878 size: 1 feather: 7
+outline: 0, text > advanced > filters > make outline (on): fill gradient black-red-yellow
+
+fuzzy select - (no antialiasing)
+	threshold: 210 outside/ 100or50 inside
+invert & grow by 2
+invert, feather by 5, and delete
