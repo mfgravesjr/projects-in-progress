@@ -1,0 +1,21 @@
+The index for the starting cell becomes the reference cell
+
+We then test every number inside this cell
+
+SEARCH FOR WEAK LINKS
+now all the cells that are visible to the reference cell which contains the test number are stored into an array to be iterated besides from cells that are already reference cells.
+
+If no Weak Links occur default back to the next cell inside the set of visible cells of the last iteration if there was a previous iteration, otherwise, start a new x-cycle at the next index.
+
+SEARCH FOR STRONG LINKS
+For every cell to be iterated, that cell becomes the reference cell. If that reference cell belongs to a unit in which the test number occurs only one other time, then the index of that new cell becomes the reference cell, and the search for weak links continues with that reference cell.
+
+If no Strong Links occur...
+If the last weak link is visible to the first reference cell, eliminate the test number from that last weak link and end the method.
+If it is not visible, then default back to the next cell inside the set of visible cells of the last iteration of the weak link search.
+
+If a link is made to the first reference cell then...
+
+If the nubmer of reference cells are even (excluding the cell that completes the x cycle), eliminate every instance of our test number from every non-reference cell that occur in the same unit that each consecutive pair of links share (logically, this would only elminate candidates from units that have weak links, since the definition of a strong link implies that there are only reference cells in that unit).
+
+otherwise if the number of reference cells are odd (excluding the cell that completes the x cycle), then every candidate that's not our test number is eliminated from our first reference cell (and technically last, but this cell technically doesn't need to become a reference since it occurs at the end of an x-cycle; so either it will be defaulted back to the next iteration of visible cells from the previous weak link formation, or this x-cycle fails, and the next cell is tested for a new x-cycle.
